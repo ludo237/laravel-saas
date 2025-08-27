@@ -1,0 +1,15 @@
+includes:
+    - ./vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+      - app
+
+    excludePaths:
+      - tests
+
+    # The level 9 is the highest level
+    level: 7
+
+    checkUninitializedProperties: true
+    reportUnmatchedIgnoredErrors: false

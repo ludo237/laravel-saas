@@ -1,0 +1,111 @@
+name: "laravel-saas"
+
+services:
+  app:
+    image: registry.gitlab.com/6go/dx/docker/frankenphp:1
+    container_name: app
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/Caddyfile:/etc/frankenphp/Caddyfile
+      - ./:/app
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - saas
+
+  queue:
+    image: registry.gitlab.com/6go/dx/docker/php:8.4
+    container_name: queue
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 5s
+    depends_on:
+      - app
+      - redis
+    environment:
+      APP_ENV: ${APP_ENV}
+      OPCACHE_ENABLE: 0
+      PHP_MEMORY_LIMIT: 512M
+    entrypoint: [ "/bin/sh", "-c", "/var/www/bin/docker/queue.sh" ]
+    volumes:
+      - ./:/var/www:delegated
+    networks:
+      - saas
+
+  scheduler:
+    image: registry.gitlab.com/6go/dx/docker/php:8.4
+    container_name: scheduler
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 5s
+    depends_on:
+      - app
+      - redis
+    environment:
+      APP_ENV: ${APP_ENV}
+      OPCACHE_ENABLE: 0
+      PHP_MEMORY_LIMIT: 256M
+    entrypoint: [ "/bin/sh", "-c", "/var/www/bin/docker/scheduler.sh" ]
+    volumes:
+      - ./:/var/www:delegated
+    networks:
+      - saas
+
+  redis:
+    image: registry.gitlab.com/6go/dx/docker/redis:7
+    container_name: redis
+    restart: unless-stopped
+    environment:
+      ALLOW_EMPTY_PASSWORD: "no"
+      DISABLE_COMMANDS: FLUSHDB,FLUSHALL
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis:/bitnami/redis/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      - saas
+
+  mail:
+    image: registry.gitlab.com/6go/dx/docker/mailpit:latest
+    container_name: mail
+    restart: unless-stopped
+    volumes:
+      - ./docker/data/mail:/data
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATA_FILE: /data/database.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    networks:
+      - saas
+
+  stripe:
+    image: registry.gitlab.com/6go/dx/docker/stripe:latest
+    container_name: stripe
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      SKIP_VERIFY: 1
+      CONTAINER: app
+      STRIPE_KEY: ${STRIPE_SECRET}
+    networks:
+      - saas
+
+volumes:
+  caddy_data:
+  caddy_config:
+  redis:
+
+networks:
+  saas:
+    name: saas

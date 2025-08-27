@@ -1,0 +1,56 @@
+###
+# This is just a template to run dockerized containers in production
+# IMPORTANT: Customize this for your needs!
+##
+name: "your-compose-name-here"
+
+services:
+  app:
+    image: your.image.registry.here
+    container_name: app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:80"
+    volumes:
+      - ./storage:/app/storage/app
+      - ./logs/application:/app/storage/logs
+    networks:
+      - your-private-docker-network-here
+
+  queue:
+    image: your.image.registry.here
+    container_name: queue
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    depends_on:
+      - app
+    environment:
+      OPCACHE_JIT_FLAGS: 1225
+      PHP_MEMORY_LIMIT: 512M
+    entrypoint: [ "/bin/sh", "-c", "/var/www/bin/docker/queue.sh" ]
+    volumes:
+      - ./storage:/app/storage/app
+      - ./logs/application:/app/storage/logs
+    networks:
+      - your-private-docker-network-here
+
+  scheduler:
+    image: your.image.registry.here
+    container_name: scheduler
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    depends_on:
+      - app
+    environment:
+      OPCACHE_JIT_FLAGS: 1225
+      PHP_MEMORY_LIMIT: 256M
+    entrypoint: [ "/bin/sh", "-c", "/var/www/bin/docker/scheduler.sh" ]
+    volumes:
+      - ./storage:/app/storage/app
+      - ./logs/application:/app/storage/logs
+    networks:
+      - your-private-docker-network-here
+
+networks:
+  your-private-docker-network-here:
+    name: your-private-docker-network-here

@@ -1,0 +1,23 @@
+{
+	frankenphp
+}
+
+https://laravel-saas.localhost {
+    root public/
+	encode zstd br gzip
+	php_server {
+		try_files {path} index.php
+	}
+
+	intercept {
+        @accel header X-Accel-Redirect *
+        handle_response @accel {
+            root private-files/
+            rewrite * {resp.header.X-Accel-Redirect}
+            method * GET
+            # Remove the X-Accel-Redirect header set by PHP for increased security
+            header -X-Accel-Redirect
+            file_server
+        }
+    }
+}
