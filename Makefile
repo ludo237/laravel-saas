@@ -3,7 +3,7 @@ ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 directories:
 	cd $(ROOT_DIR)
 	rm -f bootstrap/cache/*.php
-	rm -rf storage/logs/* storage/framework/testing/* storage/app/public/* storage/app/ffmpeg/*
+	rm -rf storage/logs/* storage/framework/testing/* storage/app/public/*
 	chown -R $(shell id -u):$(shell id -g) storage bootstrap/cache
 	chmod -R ug+rwX storage bootstrap/cache
 
@@ -116,3 +116,4 @@ pre-commit:
 	bun run types:check
 	make pint
 	make phpstan
+
