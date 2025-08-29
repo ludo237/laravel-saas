@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Policies\TeamMemberPolicy;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Ludo237\Traits\ExposeTableProperties;
 
+#[UsePolicy(TeamMemberPolicy::class)]
 final class TeamMember extends Pivot
 {
     use ExposeTableProperties;

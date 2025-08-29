@@ -12,8 +12,8 @@ return new class extends Migration
     {
         Schema::create('teams', function (Blueprint $table) {
             $table->ulid('id')->primary();
+            $table->string('stripe_id')->nullable()->default(null);
             $table->string('name');
-            $table->foreignUlid('tier_id')->constrained('tiers')->restrictOnDelete();
             $table->timestamps();
             $table->softDeletesDatetime();
         });

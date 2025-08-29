@@ -21,6 +21,15 @@ final class TeamRoleFactory extends Factory
         return [
             'slug' => $this->faker->unique()->word(),
             'name' => $this->faker->word(),
+            'permissions' => [],
+        ];
+    }
+
+    public function admin(): self
+    {
+        return $this->state(fn (array $attributes): array => [
+            'slug' => 'admin',
+            'name' => 'Administrator',
             'permissions' => [
                 'team' => [
                     'edit',
@@ -37,20 +46,12 @@ final class TeamRoleFactory extends Factory
                     'destroy',
                 ],
             ],
-        ];
-    }
-
-    public function admin(): self
-    {
-        return $this->state(fn (array $attributes) => [
-            'slug' => 'admin',
-            'name' => 'Administrator',
         ]);
     }
 
     public function member(): self
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn (array $attributes): array => [
             'slug' => 'member',
             'name' => 'Member',
             'permissions' => [],

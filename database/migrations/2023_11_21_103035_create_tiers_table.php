@@ -13,6 +13,9 @@ return new class extends Migration
         Schema::create('tiers', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('name')->index();
+            $table->unsignedBigInteger('price')->default(0);
+            $table->string('stripe_price_key')->nullable()->default(null);
+            $table->string('stripe_price_id')->nullable()->default(null);
             $table->timestamps();
         });
     }

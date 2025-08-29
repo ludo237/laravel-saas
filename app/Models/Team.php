@@ -22,15 +22,6 @@ final class Team extends Model
 
     protected $guarded = ['id'];
 
-    public function storageUsage(): int
-    {
-        // TODO: Implement files relationship and storage calculation
-        // $this->loadMissing(['files']);
-        // return (int) $this->files()->sum('size');
-        
-        return 0;
-    }
-
     /**
      * @return BelongsToMany<User, $this, TeamMember, 'members'>
      */

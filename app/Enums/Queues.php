@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Support\Enums;
+namespace App\Enums;
 
 enum Queues: string
 {

@@ -6,28 +6,24 @@ namespace App\Policies;
 
 use App\Models\TeamMember;
 use App\Models\User;
+use App\QueryBuilders\HasPermission;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Builder;
 
-/**
- * TODO:
- *  right now we are not leveraging the fine tuned permissions of the role
- *  because we only have admins and members
- */
 final class TeamPolicy
 {
     public function update(User $user, string $teamId): Response
     {
-        $isAdmin = TeamMember::query()
-            ->whereHas('role', function (Builder $query) {
-                $query->where('slug', '=', 'admin');
-            })
-            ->where('user_id', '=', $user->getKey())
-            ->where('team_id', '=', $teamId)
+        $hasPermission = TeamMember::query()
+            ->tap(fn ($query): Builder => new HasPermission(
+                userId: $user->getKey(),
+                permissionPath: 'team.edit',
+                teamId: $teamId
+            )($query))
             ->exists();
 
-        return $isAdmin
+        return $hasPermission
             ? Response::allow()
-            : Response::deny();
+            : Response::deny('You cannot update this team');
     }
 }

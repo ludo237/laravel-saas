@@ -8,12 +8,12 @@ use App\Http\Controller;
 use App\Models\OAuthProvider;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
-use Symfony\Component\HttpFoundation\RedirectResponse as SymfonyRedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
+use Symfony\Component\HttpFoundation\RedirectResponse as SymfonyRedirectResponse;
 
 final class OAuthLoginController extends Controller
 {

@@ -4,30 +4,35 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Models\Team;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\QueryBuilders\HasFreeTierSubscription;
+use App\QueryBuilders\HasPermission;
+use App\QueryBuilders\IdentifiedBy;
 use Illuminate\Auth\Access\Response;
-use Illuminate\Database\Eloquent\Builder;
 
-/**
- * TODO:
- *  right now we are not leveraging the fine tuned permissions of the role
- *  because we only have admins and members
- */
 final class TeamInvitePolicy
 {
     public function create(User $user, string $teamId): Response
     {
-        $isAdmin = TeamMember::query()
-            ->whereHas('role', function (Builder $query) {
-                $query->where('slug', '=', 'admin');
-            })
-            ->where('user_id', '=', $user->getKey())
-            ->where('team_id', '=', $teamId)
+        // Check if team has free tier subscription (free tier teams cannot add members)
+        $isFreeTier = Team::query()
+            ->tap(fn ($query) => new IdentifiedBy($teamId)($query))
+            ->tap(new HasFreeTierSubscription())
             ->exists();
 
-        return $isAdmin
+        if ($isFreeTier) {
+            return Response::deny('Free tier teams cannot add members. Please upgrade your subscription.');
+        }
+
+        // Check if user has member.create permission for this team
+        $hasPermission = TeamMember::query()
+            ->tap(new HasPermission($user->getKey(), 'member.create', $teamId))
+            ->exists();
+
+        return $hasPermission
             ? Response::allow()
-            : Response::deny();
+            : Response::deny('You do not have permission to invite members to this team.');
     }
 }
