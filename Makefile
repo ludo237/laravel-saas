@@ -1,119 +1,137 @@
 ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
-directories:
-	cd $(ROOT_DIR)
-	rm -f bootstrap/cache/*.php
-	rm -rf storage/logs/* storage/framework/testing/* storage/app/public/*
-	chown -R $(shell id -u):$(shell id -g) storage bootstrap/cache
+# Declare all targets as phony (not file targets)
+.PHONY: directories sqlite-init docker-up docker-down docker-laravel-init docker-test-init \
+		docker-test-coverage docker-test docker-test-fast docker-audit docker-phpstan \
+		docker-pint docker-pint-dry docker-rector docker-composer-update docker-ziggy \
+		laravel-init test-init test-coverage ziggy test test-fast audit phpstan pint \
+		pint-dry rector pre-commit-fe pre-commit-be pre-commit-all
+
+directories: ## Setup storage directories and permissions
+	@cd $(ROOT_DIR); set -e; \
+	rm -f bootstrap/cache/*.php; \
+	rm -rf storage/logs/* storage/framework/testing/* storage/app/public/*; \
+	mkdir -p storage/app/public; \
+	chown -R $$(id -u):$$(id -g) storage bootstrap/cache; \
 	chmod -R ug+rwX storage bootstrap/cache
 
-sqlite-init:
-	cd $(ROOT_DIR)
-	rm -rf database/database.sqlite
+sqlite-init: ## Initialize SQLite database
+	@cd $(ROOT_DIR); set -e; \
+	rm -rf database/database.sqlite; \
 	touch database/database.sqlite
 
-docker-up: directories sqlite-init
-	cd $(ROOT_DIR)
-	yes | cp -rf docker/compose.development.yml compose.yml
-	yes | cp -rf envs/.env.dev .env
+docker-up: directories sqlite-init ## Start Docker development environment
+	@cd $(ROOT_DIR); set -e; \
+	yes | cp -rf docker/compose.development.yml compose.yml; \
+	yes | cp -rf envs/.env.dev .env; \
 	podman run --rm --tty --interactive --volume $(ROOT_DIR):/app \
 		registry.gitlab.com/6go/dx/docker/composer:latest \
-		composer install --ignore-platform-reqs
-	podman unshare rm -rf $(ROOT_DIR)docker/data/*
+		composer install --ignore-platform-reqs; \
+	podman unshare rm -rf $(ROOT_DIR)docker/data/*; \
 	podman compose up -d --force-recreate
 
-docker-down:
-	podman unshare rm -rf $(ROOT_DIR)docker/data/*
-	podman compose stop
+docker-down: ## Stop Docker development environment
+	@cd $(ROOT_DIR); set -e; \
+	podman unshare rm -rf $(ROOT_DIR)docker/data/*; \
+	podman compose stop; \
 	podman compose down --volumes
 
-docker-laravel-init:
-	podman exec -it app make laravel-init
+docker-laravel-init: ## Initialize Laravel in Docker container
+	@podman exec -it app make laravel-init
 
-docker-test-init:
-	podman exec -it app make test-init
+docker-test-init: ## Initialize testing environment in Docker
+	@podman exec -it app make test-init
 
-docker-test-coverage:
-	podman exec -it app make test-coverage
+docker-test-coverage: ## Run tests with coverage in Docker
+	@podman exec -it app make test-coverage
 
-docker-test:
-	podman exec -it app make test
+docker-test: ## Run tests in Docker
+	@podman exec -it app make test
 
-docker-test-fast:
-	podman exec -it app make test-fast
+docker-test-fast: ## Run parallel tests in Docker
+	@podman exec -it app make test-fast
 
-docker-audit:
-	podman exec -it app make audit
+docker-audit: ## Run security audit in Docker
+	@podman exec -it app make audit
 
-docker-phpstan:
-	podman exec -it app make phpstan
+docker-phpstan: ## Run PHPStan analysis in Docker
+	@podman exec -it app make phpstan
 
-docker-pint:
-	podman exec -it app make pint
+docker-pint: ## Run Laravel Pint formatter in Docker
+	@podman exec -it app make pint
 
-docker-pint-dry:
-	podman exec -it app make pint-dry
+docker-pint-dry: ## Run Pint dry-run in Docker
+	@podman exec -it app make pint-dry
 
-docker-rector:
-	podman exec -it app make rector
+docker-rector: ## Run Rector refactoring in Docker
+	@podman exec -it app make rector
 
-docker-composer-update:
-	podman run --rm --tty --interactive --volume $(ROOT_DIR):/app \
+docker-composer-update: ## Update Composer dependencies in Docker
+	@podman run --rm --tty --interactive --volume $(ROOT_DIR):/app \
 		registry.gitlab.com/6go/dx/docker/composer:latest \
 		composer update -oW --ignore-platform-reqs
 
-docker-ziggy:
-	podman exec -it app make ziggy
+docker-ziggy: ## Generate Ziggy routes in Docker
+	@podman exec -it app make ziggy
 
-laravel-init: directories sqlite-init
-	cp $(ROOT_DIR)envs/.env.dev .env
-	php artisan key:generate
-	php artisan migrate:fresh --seed
+laravel-init: directories sqlite-init ## Initialize Laravel application
+	@cd $(ROOT_DIR); set -e; \
+	cp $(ROOT_DIR)envs/.env.dev .env; \
+	php artisan key:generate; \
+	php artisan migrate:fresh --seed; \
 	php artisan optimize:clear
 
-test-init: directories sqlite-init
-	cd $(ROOT_DIR)
-	mkdir -p reports/phpunit/coverage
-	touch reports/phpunit/coverage/teamcity.txt
-	yes | cp -rf envs/.env.dev .env
-	php artisan optimize:clear
+test-init: directories sqlite-init ## Initialize testing environment
+	@cd $(ROOT_DIR); set -e; \
+	mkdir -p reports/phpunit/coverage; \
+	touch reports/phpunit/coverage/teamcity.txt; \
+	yes | cp -rf envs/.env.dev .env; \
+	php artisan optimize:clear; \
 	php artisan migrate:fresh --env=testing
 
-test-coverage: test-init
-	php artisan test \
+test-coverage: test-init ## Run tests with coverage report
+	@php artisan test \
+		--coverage \
+		--log-junit ./reports/junit.xml \
+		--coverage-cobertura=./reports/cobertura.xml \
 		--parallel \
-		--processes=6 \
-		--coverage-html ./reports/phpunit/coverage/html \
-		--env=testing
+		--processes=6
 
-ziggy:
-	 php artisan ziggy:generate --types-only
+ziggy: ## Generate Ziggy TypeScript routes
+	@php artisan ziggy:generate --types-only
 
-test:
-	php artisan test --bail
+test: test-init ## Run tests with bail on first failure
+	@php artisan test --bail
 
-test-fast:
-	php artisan test --parallel --processes=6
+test-fast: test-init ## Run tests in parallel
+	@php artisan test --parallel --processes=6
 
-audit:
-	composer audit
+audit: ## Run Composer security audit
+	@composer audit
 
-phpstan:
-	./vendor/bin/phpstan analyse --error-format gitlab --memory-limit=512M
+phpstan: ## Run PHPStan static analysis
+	@./vendor/bin/phpstan analyse --error-format gitlab --memory-limit=512M
 
-pint:
-	./vendor/bin/pint --parallel
+pint: ## Run Laravel Pint code formatter
+	@./vendor/bin/pint --parallel
 
-pint-dry:
-	./vendor/bin/pint --format=gitlab --test --parallel --bail
+pint-dry: ## Run Pint dry-run (check only)
+	@./vendor/bin/pint --format=gitlab --test --parallel --bail
 
-rector:
-	./vendor/bin/rector --output-format=json
+rector: ## Run Rector automated refactoring
+	@./vendor/bin/rector --output-format=json
 
-pre-commit:
-	bun run prettier
-	bun run eslint
-	bun run types:check
-	make pint
-	make phpstan
+pre-commit-fe: ## Run frontend pre-commit checks
+	@bun run prettier
+	@bun run eslint
+	@bun run types:check
+
+pre-commit-be: ## Run backend pre-commit checks
+	@$(MAKE) pint
+	@$(MAKE) phpstan
+	@$(MAKE) docker-test-fast
+
+pre-commit-all: ## Run all pre-commit checks
+	@$(MAKE) pre-commit-fe
+	@$(MAKE) pre-commit-be
 
